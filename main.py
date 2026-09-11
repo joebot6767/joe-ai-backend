@@ -3,13 +3,13 @@ import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from openai import OpenAI
+from google import genai
 
 
 app = FastAPI(title="JOE AI Backend")
 
 
-# Allow your GitHub Pages website to communicate with this server.
+# Allow the GitHub Pages website to communicate with JOE.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -41,35 +41,33 @@ def health():
 @app.post("/chat")
 def chat(request: ChatRequest):
 
-    api_key = os.environ.get("OPENAI_API_KEY")
+    api_key = os.environ.get("GEMINI_API_KEY")
 
     if not api_key:
         return {
-            "error": "OPENAI_API_KEY is not configured on the server."
+            "error": "GEMINI_API_KEY is not configured."
+        }
+
+    if not request.message.strip():
+        return {
+            "error": "Message cannot be empty."
         }
 
     try:
+        client = genai.Client(api_key=api_key)
 
-        client = OpenAI(api_key=api_key)
-
-        response = client.responses.create(
-            model="gpt-5.6-mini",
-            instructions=(
-                "You are JOE, a helpful AI assistant. "
-                "Be friendly, clear and useful. "
-                "Answer the user's question directly."
-            ),
-            input=request.message
+        response = client.models.generate_content(
+            model="gemini-3.8-flash",
+            contents=request.message,
         )
 
         return {
-            "reply": response.output_text
+            "reply": response.text
         }
 
     except Exception as error:
 
         return {
-            "error": "The AI service could not be reached.",
+            "error": "Gemini could not answer the request.",
             "details": str(error)
         }
-
